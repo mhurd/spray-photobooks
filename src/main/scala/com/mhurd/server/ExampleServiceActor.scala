@@ -27,12 +27,12 @@ class ExampleServiceActor(val amazonClient: AmazonClient) extends Actor with Exa
 trait ExampleService extends HttpService {
 
   def myRoute(amazonClient: AmazonClient) = {
-    pathPrefix("isbn" / LongNumber ) { isbn =>
+    pathPrefix("isbn" / Rest ) { isbn =>
       get {
         respondWithMediaType(`text/html`) {
           // XML is marshaled to `text/xml` by default, so we simply override here
-          val xmlData = amazonClient.findByIsbn(isbn.toString)
-          val bookOption = Book.fromAmazonXml(isbn.toString, xmlData)
+          val xmlData = amazonClient.findByIsbn(isbn)
+          val bookOption = Book.fromAmazonXml(isbn, xmlData)
           complete {
             <html>
               <body>
