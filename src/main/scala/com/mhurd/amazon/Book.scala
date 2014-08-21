@@ -76,7 +76,7 @@ case class Book(id: Option[String],
     }
 
   def toPrettyJson = {
-    GetBookDetails.toPrettyJson(this)
+    GetBookDetailsCmd.toPrettyJson(this)
   }
 
 }
@@ -134,7 +134,7 @@ object Book {
     }
   }
 
-  def fromAmazonXml(isbn: String, xml: Elem): Option[Book] =
+  def fromAmazonXml(isbn: String, xml: Elem): Either[String, Book] =
     (xml \\ "Error").size match {
       case 0 => {
         val itemNode = xml \ "Items" \ "Item"
@@ -145,7 +145,7 @@ object Book {
           case _ => Some(authorsString)
         }
         val amazonAvailability = availabilityFromAmazonXml(xml)
-        Some(new Book(
+        Right(new Book(
           None,
           getOptionText(itemAttributesNode \ "ISBN"),
           getOptionText(itemAttributesNode \ "EAN"),
@@ -171,7 +171,7 @@ object Book {
           getOptionText(itemNode \ "DetailPageURL")))
       }
       case _ => {
-        None
+        Left("[" + (xml \\ "Error" \\ "Code" text) + "] " + (xml \\ "Error" \\ "Message" text))
       }
     }
 

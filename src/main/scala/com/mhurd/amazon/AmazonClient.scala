@@ -1,42 +1,49 @@
 package com.mhurd.amazon
 
-import org.jboss.netty.handler.codec.http._
-import com.twitter.finagle.Service
-import com.twitter.finagle.builder.ClientBuilder
-import com.twitter.finagle.http.Http
-import com.twitter.util.{TimeoutException, Duration, Future}
-import scala.collection.immutable.SortedMap
+import java.net.URLEncoder
 import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
+
+import akka.actor.ActorSystem
+import akka.io.IO
+import akka.pattern.ask
+import akka.util.Timeout
 import org.apache.commons.codec.binary.Base64
-import java.nio.charset.Charset
-import java.util.concurrent.TimeUnit
-import java.net.{InetSocketAddress, URLEncoder}
-import xml.Elem
+import spray.can.Http
+import spray.http.HttpMethods._
+import spray.http.StatusCodes.Success
+import spray.http.{HttpRequest, HttpResponse, Uri}
+
 import scala.Predef._
-import scala.RuntimeException
+import scala.collection.immutable.SortedMap
+import scala.concurrent.Await
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.duration._
+import scala.xml.Elem
 
 trait AmazonClient {
 
-  def findByKeywords(keywords: List[String]): Elem
+  def findByKeywords(keywords: List[String]): Either[String, Elem]
 
-  def findByIsbn(isbn: String): Elem
+  def findByIsbn(isbn: String): Either[String, Elem]
 
-  def findOfferSummaryByIsbn(isbn: String): Elem
-
-  def close(): Unit
+  def findOfferSummaryByIsbn(isbn: String): Either[String, Elem]
 
 }
 
 object AmazonClient {
 
-  def apply(accessKey: String, secretKey: String, associateTag: String): AmazonClient = {
+  def apply(accessKey: String, secretKey: String, associateTag: String)(implicit system: ActorSystem): AmazonClient = {
     new AmazonImpl(accessKey, secretKey, associateTag)
   }
 
 }
 
-private class AmazonImpl(private val accessKey: String, private val secretKey: String, private val associateTag: String) extends AmazonClient {
+private class AmazonImpl(private val accessKey: String, private val secretKey: String, private val associateTag: String)(implicit system: ActorSystem) extends AmazonClient {
+
+  private implicit val timeout: Timeout = 5.seconds
+
+  private val awaitDuration: Duration = 5.seconds
 
   // Amazon API Constants
   private val AMAZON_API_VERSION = "2011-08-01"
@@ -53,13 +60,6 @@ private class AmazonImpl(private val accessKey: String, private val secretKey: S
   private val mac = Mac.getInstance(SHA_256)
   mac.init(secretKeySpec)
 
-  // HTTP client constants
-  private val DEFAULT_TCP_TIMEOUT = Duration.fromTimeUnit(60, TimeUnit.SECONDS)
-  private val DEFAULT_TIMEOUT = Duration.fromTimeUnit(60, TimeUnit.SECONDS)
-  private val HOST_CONNECTION_LIMIT = 1
-  private val DEFAULT_HTTP_PORT = 80
-  private val MAX_RETRIES = 3
-
   // Base arguments for the Amazon API request
   private val BASIC_ARGUMENTS = SortedMap(
     "Service" -> AMAZON_SERVICE,
@@ -72,13 +72,42 @@ private class AmazonImpl(private val accessKey: String, private val secretKey: S
     "ResponseGroup" -> "ItemAttributes,OfferSummary,Images"
   )
 
-  private val httpClient: Service[HttpRequest, HttpResponse] = ClientBuilder()
-    .codec(Http())
-    .hosts(new InetSocketAddress(AMAZON_API_HOST, DEFAULT_HTTP_PORT))
-    .hostConnectionLimit(HOST_CONNECTION_LIMIT)
-    .tcpConnectTimeout(DEFAULT_TCP_TIMEOUT)
-    .retries(3)
-    .build()
+  def request(arguments: SortedMap[String, String]): Either[String, Elem] = {
+    // execution context for future transformation below
+    val result = for {
+      response <- IO(Http).ask(HttpRequest(GET, Uri(getSignedUrl(arguments)))).mapTo[HttpResponse]
+    } yield {
+      system.log.info("Request-Level API: received {} response with {} bytes", response.status, response.entity.data.length)
+      response
+    }
+    val response = Await.result(result, awaitDuration)
+    response.status match {
+      case Success(_) => Right(scala.xml.XML.loadString(response.entity.data.asString))
+      case _ => Left(response.status.defaultMessage)
+    }
+  }
+
+  private def getSignedUrl(arguments: SortedMap[String, String]): String = {
+    val args = mergeArguments(arguments)
+    val toSign = "GET" + "\n" + AMAZON_API_HOST + "\n" + AMAZON_API_REQUEST_URI + "\n" + args
+    val hmacResult = hmac(toSign)
+    val sig = percentEncodeRfc3986(hmacResult)
+    "http://" + AMAZON_API_HOST + AMAZON_API_REQUEST_URI + "?" + args + "&Signature=" + sig
+  }
+
+  private def hmac(stringToSign: String): String = {
+    val data = stringToSign.getBytes(UTF8_CHARSET)
+    val rawHmac = mac.doFinal(data)
+    new String(encoder.encode(rawHmac))
+  }
+
+  private def mergeArguments(arguments: SortedMap[String, String]): String = {
+    val mergedArguments: SortedMap[String, String] = BASIC_ARGUMENTS ++ arguments + ("Timestamp" -> getIso8601TimestampString)
+    val f = {
+      (p: (String, String)) => percentEncodeRfc3986(p._1) + "=" + percentEncodeRfc3986(p._2)
+    }
+    mergedArguments.map(f).mkString("&")
+  }
 
   private def getIso8601TimestampString: String = {
     val format = new java.text.SimpleDateFormat(ISO_8601_TIMESTAMP_FORMAT)
@@ -89,66 +118,16 @@ private class AmazonImpl(private val accessKey: String, private val secretKey: S
     URLEncoder.encode(s, UTF8_CHARSET).replace("+", "%20")
   }
 
-  private def hmac(stringToSign: String): String = {
-    val data = stringToSign.getBytes(UTF8_CHARSET)
-    val rawHmac = mac.doFinal(data)
-    new String(encoder.encode(rawHmac))
+  def findByKeywords(keywords: List[String]): Either[String, Elem] = {
+    request(SortedMap("Operation" -> "ItemSearch", "Keywords" -> keywords.mkString("+")))
   }
 
-  private def mergeArguments(arguments: SortedMap[String, String]): String = {
-    val mergedArguments: SortedMap[String, String] = BASIC_ARGUMENTS ++ arguments + (("Timestamp" -> getIso8601TimestampString))
-    val f = {
-      (p: (String, String)) => percentEncodeRfc3986(p._1) + "=" + percentEncodeRfc3986(p._2)
-    }
-    mergedArguments.map(f).mkString("&")
+  def findByIsbn(isbn: String): Either[String, Elem] = {
+    request(SortedMap("Operation" -> "ItemLookup", "ItemId" -> isbn, "IdType" -> "ISBN"))
   }
 
-  private def getSignedUrl(arguments: SortedMap[String, String]): String = {
-    val args = mergeArguments(arguments)
-    val toSign = "GET" + "\n" + AMAZON_API_HOST + "\n" + AMAZON_API_REQUEST_URI + "\n" + args
-    val hmacResult = hmac(toSign)
-    val sig = percentEncodeRfc3986(hmacResult)
-    AMAZON_API_REQUEST_URI + "?" + args + "&Signature=" + sig
-  }
-
-  private def find(arguments: SortedMap[String, String], timeout: Duration, retryCount: Int): Elem = {
-    try {
-      val request: HttpRequest = new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.GET, getSignedUrl(arguments))
-      request.addHeader("Host", AMAZON_API_HOST)
-      val responseFuture: Future[HttpResponse] = httpClient(request)
-      val httpResponse = responseFuture.apply(timeout)
-      httpResponse.getStatus match {
-        case HttpResponseStatus.OK => scala.xml.XML.loadString(httpResponse.getContent.toString(Charset.forName(UTF8_CHARSET)))
-        case _ => {
-          if (retryCount < MAX_RETRIES)
-            find(arguments, timeout, retryCount + 1)
-          else
-            throw new RuntimeException(httpResponse.getContent.toString(Charset.forName(UTF8_CHARSET)))
-        }
-      }
-    } catch {
-      case te: TimeoutException => if (retryCount < MAX_RETRIES)
-        find(arguments, timeout, retryCount + 1)
-      else
-        throw new RuntimeException(te)
-      case e: Exception => throw e
-    }
-  }
-
-  def findByKeywords(keywords: List[String]): Elem = {
-    find(SortedMap("Operation" -> "ItemSearch", "Keywords" -> keywords.mkString("+")), DEFAULT_TIMEOUT, 0)
-  }
-
-  def findByIsbn(isbn: String): Elem = {
-    find(SortedMap("Operation" -> "ItemLookup", "ItemId" -> isbn, "IdType" -> "ISBN"), DEFAULT_TIMEOUT, 0)
-  }
-
-  def findOfferSummaryByIsbn(isbn: String): Elem = {
-    find(SortedMap("ResponseGroup" -> "OfferSummary", "Operation" -> "ItemLookup", "ItemId" -> isbn, "IdType" -> "ISBN"), DEFAULT_TIMEOUT, 0)
-  }
-
-  def close(): Unit = {
-    httpClient.close()
+  def findOfferSummaryByIsbn(isbn: String): Either[String, Elem] = {
+    request(SortedMap("ResponseGroup" -> "OfferSummary", "Operation" -> "ItemLookup", "ItemId" -> isbn, "IdType" -> "ISBN"))
   }
 
 }
