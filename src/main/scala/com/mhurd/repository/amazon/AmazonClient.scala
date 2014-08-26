@@ -1,4 +1,4 @@
-package com.mhurd.amazon
+package com.mhurd.repository.amazon
 
 import java.net.URLEncoder
 import javax.crypto.Mac
@@ -23,9 +23,9 @@ import scala.xml.Elem
 
 trait AmazonClient {
 
-  def findByKeywords(keywords: List[String]): Either[String, Elem]
+  def findBookByKeywords(keywords: List[String]): Either[String, Elem]
 
-  def findByIsbn(isbn: String): Either[String, Elem]
+  def findBookByIsbn(isbn: String): Either[String, Elem]
 
   def findOfferSummaryByIsbn(isbn: String): Either[String, Elem]
 
@@ -72,7 +72,7 @@ private class AmazonImpl(private val accessKey: String, private val secretKey: S
     "ResponseGroup" -> "ItemAttributes,OfferSummary,Images"
   )
 
-  def request(arguments: SortedMap[String, String]): Either[String, Elem] = {
+  private def request(arguments: SortedMap[String, String]): Either[String, Elem] = {
     // execution context for future transformation below
     val result = for {
       response <- IO(Http).ask(HttpRequest(GET, Uri(getSignedUrl(arguments)))).mapTo[HttpResponse]
@@ -118,11 +118,11 @@ private class AmazonImpl(private val accessKey: String, private val secretKey: S
     URLEncoder.encode(s, UTF8_CHARSET).replace("+", "%20")
   }
 
-  def findByKeywords(keywords: List[String]): Either[String, Elem] = {
+  def findBookByKeywords(keywords: List[String]): Either[String, Elem] = {
     request(SortedMap("Operation" -> "ItemSearch", "Keywords" -> keywords.mkString("+")))
   }
 
-  def findByIsbn(isbn: String): Either[String, Elem] = {
+  def findBookByIsbn(isbn: String): Either[String, Elem] = {
     request(SortedMap("Operation" -> "ItemLookup", "ItemId" -> isbn, "IdType" -> "ISBN"))
   }
 
