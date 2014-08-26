@@ -1,9 +1,8 @@
 package com.mhurd.repository.amazon
 
-import akka.actor.{Actor, ActorSystem, Props}
+import akka.actor.{Actor, ActorLogging, ActorSystem, Props}
 import com.mhurd.repository.{Book, BookRepository, FindByIsbn}
 import com.typesafe.config.Config
-import akka.actor.ActorLogging
 
 object AmazonRepositoryActor {
   def props(amazonClient: AmazonClient)(implicit system: ActorSystem, cfg: Config): Props = Props(new AmazonRepositoryActor(amazonClient))

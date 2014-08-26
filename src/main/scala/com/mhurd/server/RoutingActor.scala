@@ -1,15 +1,14 @@
 package com.mhurd.server
 
-import java.util.concurrent.{TimeoutException, TimeUnit}
+import java.util.concurrent.{TimeUnit, TimeoutException}
 
-import akka.actor.{ActorSystem, ActorRef, Actor, Props}
+import akka.actor.{Actor, ActorRef, ActorSystem, Props}
+import akka.pattern.ask
 import akka.util.Timeout
-import com.mhurd.repository.amazon.AmazonClient
-import com.mhurd.repository.{FindByIsbn, Book}
+import com.mhurd.repository.{Book, FindByIsbn}
+import com.typesafe.config.Config
 import spray.http.MediaTypes._
 import spray.routing._
-import akka.pattern.ask
-import com.typesafe.config.Config
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
@@ -72,19 +71,17 @@ trait RoutingService extends HttpService {
             <html>
               <body>
                 <code>
-                  {
-                    findMongoBookByIsbn(isbn) match {
-                      case Right(book) => book.toString
-                      case Left(errorMsg) => errorMsg
-                    }
-                  }
+                  {findMongoBookByIsbn(isbn) match {
+                  case Right(book) => book.toString
+                  case Left(errorMsg) => errorMsg
+                }}
                 </code>
               </body>
             </html>
           }
         }
       }
-    } ~ path("amazon" / "isbn" / Segment ) { isbn =>
+    } ~ path("amazon" / "isbn" / Segment) { isbn =>
       get {
         respondWithMediaType(`text/html`) {
 
@@ -92,12 +89,10 @@ trait RoutingService extends HttpService {
             <html>
               <body>
                 <code>
-                  {
-                    findAmazonBookByIsbn(isbn) match {
-                      case Right(book) => book.toString
-                      case Left(errorMsg) => errorMsg
-                    }
-                  }
+                  {findAmazonBookByIsbn(isbn) match {
+                  case Right(book) => book.toString
+                  case Left(errorMsg) => errorMsg
+                }}
                 </code>
               </body>
             </html>

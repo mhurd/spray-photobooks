@@ -72,6 +72,18 @@ private class AmazonImpl(private val accessKey: String, private val secretKey: S
     "ResponseGroup" -> "ItemAttributes,OfferSummary,Images"
   )
 
+  def findBookByKeywords(keywords: List[String]): Either[String, Elem] = {
+    request(SortedMap("Operation" -> "ItemSearch", "Keywords" -> keywords.mkString("+")))
+  }
+
+  def findBookByIsbn(isbn: String): Either[String, Elem] = {
+    request(SortedMap("Operation" -> "ItemLookup", "ItemId" -> isbn, "IdType" -> "ISBN"))
+  }
+
+  def findOfferSummaryByIsbn(isbn: String): Either[String, Elem] = {
+    request(SortedMap("ResponseGroup" -> "OfferSummary", "Operation" -> "ItemLookup", "ItemId" -> isbn, "IdType" -> "ISBN"))
+  }
+
   private def request(arguments: SortedMap[String, String]): Either[String, Elem] = {
     // execution context for future transformation below
     val result = for {
@@ -115,18 +127,6 @@ private class AmazonImpl(private val accessKey: String, private val secretKey: S
 
   private def percentEncodeRfc3986(s: String): String = {
     URLEncoder.encode(s, UTF8_CHARSET).replace("+", "%20")
-  }
-
-  def findBookByKeywords(keywords: List[String]): Either[String, Elem] = {
-    request(SortedMap("Operation" -> "ItemSearch", "Keywords" -> keywords.mkString("+")))
-  }
-
-  def findBookByIsbn(isbn: String): Either[String, Elem] = {
-    request(SortedMap("Operation" -> "ItemLookup", "ItemId" -> isbn, "IdType" -> "ISBN"))
-  }
-
-  def findOfferSummaryByIsbn(isbn: String): Either[String, Elem] = {
-    request(SortedMap("ResponseGroup" -> "OfferSummary", "Operation" -> "ItemLookup", "ItemId" -> isbn, "IdType" -> "ISBN"))
   }
 
 }
