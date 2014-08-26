@@ -67,6 +67,19 @@
             <artifactId>akka-osgi_${scala.major-minor.version}</artifactId>
             <version>2.3.5</version>
         </dependency>
+        <dependency>
+            <groupId>com.typesafe.akka</groupId>
+            <artifactId>akka-slf4j_${scala.major-minor.version}</artifactId>
+            <version>2.3.5</version>
+        </dependency>
+
+        <!-- Logging dependencies -->
+
+        <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-classic</artifactId>
+            <version>1.1.2</version>
+        </dependency>
 
         <!-- Misc. dependencies -->
 

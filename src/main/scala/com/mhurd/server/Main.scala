@@ -1,16 +1,13 @@
 package com.mhurd.server
 
-import java.util.concurrent.TimeUnit
-
-import akka.actor.{Props, ActorSystem}
+import akka.actor.ActorSystem
+import akka.event.Logging
 import akka.io.IO
 import akka.routing.RoundRobinRouter
-import akka.util.Timeout
-import com.mhurd.repository.amazon.{AmazonRepositoryActor, AmazonClient}
+import com.mhurd.repository.amazon.{AmazonClient, AmazonRepositoryActor}
 import com.mhurd.repository.mongo.MongoRepositoryActor
-import com.typesafe.config.{ConfigFactory, Config}
+import com.typesafe.config.ConfigFactory
 import spray.can.Http
-import akka.event.Logging
 
 object Main extends App {
 
@@ -25,7 +22,16 @@ object Main extends App {
   val secretKey = args(1)
   val assocTag = args(2)
 
-  implicit val timeout = Timeout(5, TimeUnit.SECONDS)
+  val amazonRepositoryRouter = akkaSystem.actorOf(
+    AmazonRepositoryActor.props(AmazonClient(accessKey, secretKey, assocTag)).withRouter(RoundRobinRouter(numberOfActors())), name = "amazonRepositoryRouter")
+
+  val mongoRepositoryRouter = akkaSystem.actorOf(
+    MongoRepositoryActor.props().withRouter(RoundRobinRouter(numberOfActors())), name = "mongoRepositoryRouter")
+  // create and start our service actor
+
+  val serviceRouterActor = akkaSystem.actorOf(RoutingActor.props(
+    amazonRepositoryRouter,
+    mongoRepositoryRouter), name = "serviceRouterActor")
 
   def numberOfActors(): Int = {
     val parallelismCoefficient = 75 // 1..100, lower for CPU-bound, higher for IO-bound
@@ -33,17 +39,6 @@ object Main extends App {
     log.info("Using " + number + " actors per router...")
     number
   }
-
-  val amazonRepositoryRouter = akkaSystem.actorOf(
-    AmazonRepositoryActor.props(AmazonClient(accessKey, secretKey, assocTag)).withRouter(RoundRobinRouter(numberOfActors())), name = "amazonRepositoryRouter")
-
-  val mongoRepositoryRouter = akkaSystem.actorOf(
-    MongoRepositoryActor.props().withRouter(RoundRobinRouter(numberOfActors())), name = "mongoRepositoryRouter")
-
-  // create and start our service actor
-  val serviceRouterActor = akkaSystem.actorOf(RoutingActor.props(
-    amazonRepositoryRouter,
-    mongoRepositoryRouter), name = "serviceRouterActor")
 
   // start a new HTTP server on port 8080 with our service actor as the handler
   IO(Http) ! Http.Bind(serviceRouterActor, interface = "localhost", port = 8080)

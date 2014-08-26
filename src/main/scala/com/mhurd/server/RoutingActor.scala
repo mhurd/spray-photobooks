@@ -1,6 +1,6 @@
 package com.mhurd.server
 
-import java.util.concurrent.TimeUnit
+import java.util.concurrent.{TimeoutException, TimeUnit}
 
 import akka.actor.{ActorSystem, ActorRef, Actor, Props}
 import akka.util.Timeout
@@ -26,12 +26,20 @@ class RoutingActor(val amazonRepositoryRouter: ActorRef, val mongoRepositoryRout
   // connects the services environment to the enclosing actor or test
   def actorRefFactory = context
 
-  implicit val akkaTimeout = Timeout(5, TimeUnit.SECONDS)
-  private val awaitDuration = cfg.getInt("repository.timeout") seconds
+  implicit val akkaTimeout = Timeout(cfg.getInt("akka.ask-timeout"), TimeUnit.MILLISECONDS)
+  private val awaitDuration = cfg.getInt("repository.await-timeout") milliseconds
 
   private def findBookByIsbn(router: ActorRef, isbn: String): Either[String, Book] = {
     val future = router ? FindByIsbn(isbn)
-    Await.result(future.mapTo[Either[String, Book]], awaitDuration)
+    try {
+      Await.result(future.mapTo[Either[String, Book]], awaitDuration)
+    } catch {
+      case ex: TimeoutException => {
+        val msg = s"findBookByIsbn ${isbn} to ${router.toString()} timed out: ${ex.getMessage}"
+        system.log.warning(msg)
+        Left(msg)
+      }
+    }
   }
 
   def findAmazonBookByIsbn(isbn: String): Either[String, Book] = {

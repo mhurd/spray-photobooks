@@ -4,20 +4,41 @@
     <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
         <target>System.out</target>
         <encoder>
-            <pattern>%date{MM/dd HH:mm:ss.SSS} %-5level[%.15thread] %logger{1} - %msg%n</pattern>
+            <pattern>%date{ISO8601} | %-5level | %logger{36} | %X{sourceThread} | %X{akkaSource} | %msg%n</pattern>
         </encoder>
     </appender>
 
-    <!-- <appender name="FILE" class="ch.qos.logback.core.FileAppender">
-        <file>akka.log</file>
-        <append>false</append>
+    <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <!-- daily rollover -->
+            <fileNamePattern>spray-photobooks-akka.%d{yyyy-MM-dd}.log</fileNamePattern>
+            <!-- keep 30 days' worth of history -->
+            <maxHistory>30</maxHistory>
+        </rollingPolicy>
         <encoder>
-            <pattern>%date{MM/dd HH:mm:ss} %-5level[%thread] %logger{1} - %msg%n</pattern>
+            <pattern>%date{ISO8601} | %-5level | %logger{36} | %X{sourceThread} | %X{akkaSource} | %msg%n</pattern>
         </encoder>
-    </appender> -->
+    </appender>
+
+    <appender name="XML" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <!-- daily rollover -->
+            <fileNamePattern>spray-photobooks-akka.%d{yyyy-MM-dd}.xml</fileNamePattern>
+            <!-- keep 30 days' worth of history -->
+            <maxHistory>30</maxHistory>
+        </rollingPolicy>
+        <encoder class="ch.qos.logback.core.encoder.LayoutWrappingEncoder">
+            <layout class="ch.qos.logback.classic.log4j.XMLLayout">
+                <locationInfo>true</locationInfo>
+                <properties>true</properties>
+            </layout>
+        </encoder>
+    </appender>
 
     <root level="DEBUG">
         <appender-ref ref="CONSOLE"/>
+        <appender-ref ref="FILE"/>
+        <!--<appender-ref ref="XML"/>-->
     </root>
 
 </configuration>

@@ -77,7 +77,6 @@ private class AmazonImpl(private val accessKey: String, private val secretKey: S
     val result = for {
       response <- IO(Http).ask(HttpRequest(GET, Uri(getSignedUrl(arguments)))).mapTo[HttpResponse]
     } yield {
-      system.log.info("Request-Level API: received {} response with {} bytes", response.status, response.entity.data.length)
       response
     }
     val response = Await.result(result, awaitDuration)
