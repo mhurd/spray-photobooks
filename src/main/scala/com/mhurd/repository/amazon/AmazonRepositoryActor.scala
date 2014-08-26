@@ -1,7 +1,7 @@
 package com.mhurd.repository.amazon
 
 import akka.actor.{Actor, ActorLogging, ActorSystem, Props}
-import com.mhurd.repository.{Book, BookRepository, FindByIsbn}
+import com.mhurd.repository.{Book, BookRepository, FindAll, FindByIsbn}
 import com.typesafe.config.Config
 
 object AmazonRepositoryActor {
@@ -13,29 +13,34 @@ class AmazonRepositoryActor(amazonClient: AmazonClient)(implicit system: ActorSy
   def actorRefFactory = context
 
   def receive = {
-    case msg: FindByIsbn => {
-      val r = findBookByIsbn(msg)
+    case FindByIsbn(isbn) => {
+      val r = findBookByIsbn(isbn)
       r match {
         case Right(book) => {
-          log.info("Retrieved book details from Amazon for isbn {}", msg.isbn)
+          log.info("Retrieved book details from Amazon for isbn {}", isbn)
         }
         case Left(errorMsg) => {
-          log.info("Unable to retrieve book details from Amazon for isbn {} : {}", msg.isbn, errorMsg)
+          log.info("Unable to retrieve book details from Amazon for isbn {} : {}", isbn, errorMsg)
         }
       }
       sender ! r
     }
-    case _ => sender ! None
+    case msg: FindAll => sender ! findAllBooks
+    case _ => sender ! Left("Message not recognised.")
   }
 
-  def findBookByIsbn(msg: FindByIsbn): Either[String, Book] = {
-    amazonClient.findBookByIsbn(msg.isbn) match {
-      case Right(elem) => Book.fromAmazonXml(msg.isbn, elem) match {
+  def findBookByIsbn(isbn: String): Either[String, Book] = {
+    amazonClient.findBookByIsbn(isbn) match {
+      case Right(elem) => Book.fromAmazonXml(isbn, elem) match {
         case Right(book) => Right(book)
         case Left(errorMsg) => Left(errorMsg)
       }
       case Left(errorMsg) => Left(errorMsg)
     }
+  }
+
+  def findAllBooks: Either[String, List[Book]] = {
+    Left("Operation not supported by Amazon Repository...")
   }
 
 }

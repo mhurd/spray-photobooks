@@ -3,15 +3,11 @@ package com.mhurd.repository
 import java.text.SimpleDateFormat
 import java.util.Date
 
-import spray.json.{DefaultJsonProtocol, NullOptions}
+import com.mongodb.DBObject
+import com.mongodb.casbah.commons.MongoDBObject
+import play.api.libs.json._
 
 import scala.xml.{Elem, NodeSeq}
-
-object BookJsonProtocol extends DefaultJsonProtocol with NullOptions {
-
-  implicit val bookFormat = jsonFormat17(Book.apply)
-
-}
 
 case class Book(id: Option[String],
                 isbn: Option[String],
@@ -38,14 +34,14 @@ case class Book(id: Option[String],
       smallBookCover.get
     }
 
-  def noImage = "/assets/images/no-image.jpg"
-
   def largeBookCoverWithDefault: String =
     if (largeBookCover.isEmpty || largeBookCover.get == "") {
       noImage
     } else {
       largeBookCover.get
     }
+
+  def noImage = "/assets/images/no-image.jpg"
 
   def displayableStringOption(option: Option[String]): String =
     option match {
@@ -59,6 +55,8 @@ case class Book(id: Option[String],
       case Some(listPriceMatch) => "£" + (listPriceMatch / 100).toString
     }
 
+  def noData = "- no data -"
+
   def displayableTotalAvailable: String =
     totalAvailable match {
       case None => "?"
@@ -71,13 +69,13 @@ case class Book(id: Option[String],
       case Some(price) => "£" + (price / 100).toString
     }
 
-  def noData = "- no data -"
-
   def displayableLastPriceUpdateTimestamp: String =
     lastPriceUpdateTimestamp match {
       case None => "unknown"
       case Some(timestamp) => Book.dateFormat.format(new Date(timestamp))
     }
+
+  override def toString = Book.BookFormat.writes(this).toString()
 
 }
 
@@ -88,6 +86,26 @@ object Book {
   type OfferSummary = (Price, TotalAvailable)
 
   val dateFormat = new SimpleDateFormat("EEE, d MMM yyyy HH:mm:ss z")
+
+  implicit def book2DbObject(book: Book): DBObject =
+    MongoDBObject(
+      "isbn" -> book.isbn,
+      "ean" -> book.ean,
+      "title" -> book.title,
+      "authors" -> book.authors,
+      "binding" -> book.binding,
+      "edition" -> book.edition,
+      "numberOfPages" -> book.numberOfPages,
+      "publicationDate" -> book.publicationDate,
+      "publisher" -> book.publisher,
+      "smallBookCover" -> book.smallBookCover,
+      "largeBookCover" -> book.largeBookCover,
+      "listPrice" -> book.listPrice,
+      "lowestPrice" -> book.lowestPrice,
+      "totalAvailable" -> book.totalAvailable,
+      "lastPriceUpdateTimestamp" -> book.lastPriceUpdateTimestamp,
+      "amazonPageUrl" -> book.amazonPageUrl
+    )
 
   def fromAmazonXml(isbn: String, xml: Elem): Either[String, Book] =
     (xml \\ "Error").size match {
@@ -173,6 +191,47 @@ object Book {
         case amount => Some(amount.toInt)
       }
     }
+  }
+
+  implicit object BookFormat extends Format[Book] {
+
+    def reads(json: JsValue): JsResult[Book] = JsSuccess(Book(
+      (json \ "_id" \ "$oid").as[Option[String]],
+      (json \ "isbn").as[Option[String]],
+      (json \ "ean").as[Option[String]],
+      (json \ "title").as[String],
+      (json \ "authors").as[Option[String]],
+      (json \ "binding").as[Option[String]],
+      (json \ "edition").as[Option[String]],
+      (json \ "numberOfPages").as[Option[String]],
+      (json \ "publicationDate").as[Option[String]],
+      (json \ "publisher").as[Option[String]],
+      (json \ "smallBookCover").as[Option[String]],
+      (json \ "largeBookCover").as[Option[String]],
+      (json \ "listPrice").as[Option[Int]],
+      (json \ "lowestPrice").as[Option[Int]],
+      (json \ "totalAvailable").as[Option[Int]],
+      (json \ "lastPriceUpdateTimestamp").as[Option[Long]],
+      (json \ "amazonPageUrl").as[Option[String]]))
+
+    def writes(book: Book): JsValue = JsObject(List(
+      "isbn" -> Json.toJson(book.isbn),
+      "ean" -> Json.toJson(book.ean),
+      "title" -> JsString(book.title),
+      "authors" -> Json.toJson(book.authors),
+      "binding" -> Json.toJson(book.binding),
+      "edition" -> Json.toJson(book.edition),
+      "numberOfPages" -> Json.toJson(book.numberOfPages),
+      "publicationDate" -> Json.toJson(book.publicationDate),
+      "publisher" -> Json.toJson(book.publisher),
+      "smallBookCover" -> Json.toJson(book.smallBookCover),
+      "largeBookCover" -> Json.toJson(book.largeBookCover),
+      "listPrice" -> Json.toJson(book.listPrice),
+      "lowestPrice" -> Json.toJson(book.lowestPrice),
+      "totalAvailable" -> Json.toJson(book.totalAvailable),
+      "lastPriceUpdateTimestamp" -> Json.toJson(book.lastPriceUpdateTimestamp),
+      "amazonPageUrl" -> Json.toJson(book.amazonPageUrl)))
+
   }
 
 }

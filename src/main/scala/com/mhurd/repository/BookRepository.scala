@@ -2,6 +2,8 @@ package com.mhurd.repository
 
 trait BookRepository {
 
-  def findBookByIsbn(msg: FindByIsbn): Either[String, Book]
+  def findAllBooks: Either[String, List[Book]]
+
+  def findBookByIsbn(isbn: String): Either[String, Book]
 
 }
