@@ -5,19 +5,21 @@ Toying with a re-write of the photobooks web-site in Spray as a single-page web-
 
 Requires a MongoDB installation:
 
-DB: 'photobooks'
-Collections: 'books'
+DB = photobooks
 
-User: 'photobooks'
-Pass: 'whateveryouwant'
+Collection = books
+
+User = photobooks/whateveryouwant
 
 requires JVM params:
 
+```
 -Duser.timezone=GMT
 -Dmongodb.servers="localhost:27017" 
 -Dmongodb.database="photobooks" 
 -Dmongodb.username="photobooks" 
 -Dmongodb.password="whateveryouwant"
+```
 
-requires program parameters <amazon access key> <amazon secret key> <amazon associate tag>
+requires program parameters ```<amazon access key> <amazon secret key> <amazon associate tag>```
 
