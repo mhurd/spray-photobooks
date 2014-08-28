@@ -1,33 +1,19 @@
-var books = (function ($) {
+(function ($) {
 
-    return function () {
+    function populate() {
         var hostname = location.host;
         $.getJSON("http://" + hostname + "/books", function (data) {
-            var items = [];
             $.each(data, function (key, val) {
                 if (val.smallBookCover != null) {
-                    items.push("<div class='span3'><img class='thumbnail' src='" + val.smallBookCover + "'/></div>")
+                    $('#items').append("<li class='span2'><a class='thumbnail'><img src='" + val.smallBookCover + "'/></a></li>");
                 } else {
-                    items.push("<div class='span3'><img class='thumbnail' src='../../../assets/img/image-not-found.jpg'/></div>")
-                }
-            });
-            function createRow(index) {
-                var row = $('<div />', {
-                    id      : "book-row-" + index,
-                    'class' : "row"
-                });
-                $("#books-div").append(row);
-                return row;
-            }
-            var currentRow = createRow(0);
-            var count = 0;
-            items.map(function (item) {
-                count++;
-                currentRow.append(item);
-                if (count % 4 == 0 && count < items.length) {
-                    currentRow = createRow(count) ;
+                    $('#items').append("<li class='span2'><a class='thumbnail'><img src='../../../assets/img/image-not-found.jpg'/></a></li>");
                 }
             });
         });
     };
+
+    // Populate items
+    populate();
+
 }(jQuery));
