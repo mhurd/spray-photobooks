@@ -8,6 +8,7 @@ import com.mhurd.repository.amazon.{AmazonClient, AmazonRepositoryActor}
 import com.mhurd.repository.mongo.MongoRepositoryActor
 import com.typesafe.config.ConfigFactory
 import spray.can.Http
+import spray.io.ServerSSLEngineProvider
 
 object Main extends App {
 

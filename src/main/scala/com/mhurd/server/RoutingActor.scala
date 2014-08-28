@@ -89,6 +89,10 @@ trait RoutingService extends HttpService {
     </html>
   }
 
+  def jsonBooks(books: List[Book]): String = {
+    "[" + books.map(b => b.toString).mkString(",") + "]"
+  }
+
   def htmlBook(book: Book): Elem = {
     <div>
       <img src={book.smallBookCoverWithDefault}/>
@@ -100,40 +104,65 @@ trait RoutingService extends HttpService {
     </div>
   }
 
-  def myRoute = {
-    path("mongo" / "books" / "isbn" / Segment) { isbn =>
-      get {
-        respondWithMediaType(`text/html`) {
-          complete {
-            findMongoBookByIsbn(isbn) match {
-              case Right(book) => htmlBooks(List(book))
-              case Left(errorMsg) => errorMsg
-            }
-          }
-        }
-      }
-    } ~ path("amazon" / "books" / "isbn" / Segment) { isbn =>
-      get {
-        respondWithMediaType(`text/html`) {
-          complete {
-            findAmazonBookByIsbn(isbn) match {
-              case Right(book) => htmlBooks(List(book))
-              case Left(errorMsg) => errorMsg
-            }
-          }
-        }
-      }
-    } ~ path("mongo" / "books") {
-      get {
-        respondWithMediaType(`text/html`) {
-          complete {
-            findAllMongoBooks match {
-              case Right(list) => htmlBooks(list)
-              case Left(errorMsg) => errorMsg
-            }
+  def login = path("login") {
+    get {
+      getFromResource("html/login.html")
+    }
+  }
+
+  def assets = path("assets" / Rest ) { assetPath =>
+    get {
+      getFromResource("assets/" + assetPath)
+    }
+  }
+
+  def isbn = path("books" / Segment) { isbn =>
+    get {
+      respondWithMediaType(`text/html`) {
+        complete {
+          findMongoBookByIsbn(isbn) match {
+            case Right(book) => htmlBooks(List(book))
+            case Left(errorMsg) => errorMsg
           }
         }
       }
     }
   }
+
+  def books = path("books") {
+    get {
+      respondWithMediaType(`application/json`) {
+        complete {
+          findAllMongoBooks match {
+            case Right(list) => jsonBooks(list)
+            case Left(errorMsg) => errorMsg
+          }
+        }
+      }
+    }
+  }
+
+  def amazon = path("amazon" / "books" / Segment) { isbn =>
+    get {
+      respondWithMediaType(`text/html`) {
+        complete {
+          findAmazonBookByIsbn(isbn) match {
+            case Right(book) => htmlBooks(List(book))
+            case Left(errorMsg) => errorMsg
+          }
+        }
+      }
+    }
+  }
+
+  def root = pathSingleSlash {
+    get {
+      getFromResource("html/index.html")
+    }
+  }
+
+  def myRoute = {
+    root ~ login ~ assets ~ books ~ isbn ~ amazon
+  }
+
 }
