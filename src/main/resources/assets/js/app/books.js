@@ -4,7 +4,7 @@
         if (bookJson.smallBookCover != null) {
             return "<a class='thumbnail'><img src='" + bookJson.smallBookCover + "'/></a>";
         } else {
-            return "<a class='thumbnail'><img src='../../../assets/img/image-not-found.jpg'/></a>";
+            return "<a class='thumbnail'><img src='../../../assets/img/no-image.jpg'/></a>";
         }
     }
 

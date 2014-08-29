@@ -41,7 +41,7 @@ case class Book(id: Option[String],
       largeBookCover.get
     }
 
-  def noImage = "/assets/images/image-not-found.jpg"
+  def noImage = "/assets/images/no-image.jpg"
 
   def displayableStringOption(option: Option[String]): String =
     option match {
