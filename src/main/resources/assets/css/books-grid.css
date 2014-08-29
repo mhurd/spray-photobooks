@@ -10,9 +10,22 @@ body, html {
 
 /* Images */
 .thumbnail {
+    background-color: beige;
     height: 170px;
     width: 170px;
-    margin: 5px;
+    margin: 10px;
+    min-width: 190px;
+    border: 0px;
+}
+
+.bookDetail {
+    background-color: beige;
+    margin: 10px;
+    width: 535px;
+}
+
+.dl-horizontal dd {
+    margin-right: 10px;
 }
 
 img {

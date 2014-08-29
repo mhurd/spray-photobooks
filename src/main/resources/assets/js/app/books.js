@@ -2,9 +2,9 @@
 
     function createImage(bookJson) {
         if (bookJson.smallBookCover != null) {
-            return "<div class='col-md-2'><a class='thumbnail'><img src='" + bookJson.smallBookCover + "'/></a></div>";
+            return "<a class='thumbnail'><img src='" + bookJson.smallBookCover + "'/></a>";
         } else {
-            return "<div class='col-md-2'><a class='thumbnail'><img src='../../../assets/img/image-not-found.jpg'/></a></div>";
+            return "<a class='thumbnail'><img src='../../../assets/img/image-not-found.jpg'/></a>";
         }
     }
 
@@ -32,7 +32,7 @@
         var tr = $('<tr>');
         tr.append(tdi);
         tr.append(tdd);
-        var table = $('<table class="bookDetailPanel">');
+        var table = $('<table class="bookDetail bookDetailPanel">');
         table.append(tr);
         return table;
     }
@@ -44,13 +44,13 @@
         $('.container').append(currentRow);
         $.getJSON("http://" + hostname + "/books", function (data) {
             $.each(data, function (key, val) {
-                //var item = $('<li>');
-                //item.append(createImage(val));
-                if (count % 6 == 0) {
+                if (count % 2 == 0) {
                     currentRow = $('<div class="row">');
                     $('.container').append(currentRow);
                 }
-                currentRow.append(createImage(val));
+                var aDiv = $('<div class="col-md-6">');
+                aDiv.append(createBookDetailPanel(val));
+                currentRow.append(aDiv);
                 count++;
             });
         });
