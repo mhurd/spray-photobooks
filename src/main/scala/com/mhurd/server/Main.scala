@@ -42,7 +42,7 @@ object Main extends App {
   }
 
   // start a new HTTP server on port 8080 with our service actor as the handler
-  IO(Http) ! Http.Bind(serviceRouterActor, interface = "localhost", port = 8080)
+  IO(Http) ! Http.Bind(serviceRouterActor, interface = "0.0.0.0", port = 8080)
 
   sys.addShutdownHook({
     log.info("Shutting down akka...")

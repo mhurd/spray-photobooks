@@ -2,9 +2,9 @@
 
     function createImage(bookJson) {
         if (bookJson.smallBookCover != null) {
-            return "<a class='thumbnail'><img src='" + bookJson.smallBookCover + "'/></a>";
+            return "<div class='col-md-2'><a class='thumbnail'><img src='" + bookJson.smallBookCover + "'/></a></div>";
         } else {
-            return "<a class='thumbnail'><img src='../../../assets/img/image-not-found.jpg'/></a>";
+            return "<div class='col-md-2'><a class='thumbnail'><img src='../../../assets/img/image-not-found.jpg'/></a></div>";
         }
     }
 
@@ -39,11 +39,19 @@
 
     function populate() {
         var hostname = location.host;
+        var count = 1
+        var currentRow = $("<div class='row'>");
+        $('.container').append(currentRow);
         $.getJSON("http://" + hostname + "/books", function (data) {
             $.each(data, function (key, val) {
-                var item = $('<li>');
-                item.append(createImage(val));
-                $('#items').append(item);
+                //var item = $('<li>');
+                //item.append(createImage(val));
+                if (count % 6 == 0) {
+                    currentRow = $('<div class="row">');
+                    $('.container').append(currentRow);
+                }
+                currentRow.append(createImage(val));
+                count++;
             });
         });
     };
