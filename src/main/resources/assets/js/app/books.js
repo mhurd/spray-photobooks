@@ -48,7 +48,7 @@
                     currentRow = $('<div class="row">');
                     $('.container').append(currentRow);
                 }
-                var aDiv = $('<div class="col-md-6">');
+                    var aDiv = $('<div class="col-lg-6">');
                 aDiv.append(createBookDetailPanel(val));
                 currentRow.append(aDiv);
                 count++;
